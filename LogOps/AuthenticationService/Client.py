@@ -14,5 +14,9 @@ port = 8000
 address = "localhost" #Should be changed to web address
 socketConnection.connect((address, port))
 
-print(socketConnection.recv(1024))
+msg = socketConnection.recv(1024)
+print( msg )
+
+msg2 = "Are we still connected?"
+socketConnection.send( msg2 )
 socketConnection.close()

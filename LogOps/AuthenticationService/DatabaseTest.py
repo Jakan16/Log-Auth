@@ -11,7 +11,8 @@ name = jsonObjectDict["name"]
 license = jsonObjectDict["license"]
 serverToken = jsonObjectDict["token"]
 print( serverToken )
-def createConnection(db):
+
+def create_connection(db):
 
     connection = None
 
@@ -22,8 +23,8 @@ def createConnection(db):
         print( exception )
     return connection
 
-def selectAllCompanies(connectionToDB):
-    query = "SELECT CompanyName, Agents.Token, Subscriptions.LicenseKeys FROM Companies JOIN Servers ON Companies.ID = Agents.CompanyID JOIN Subscriptions on Agents.ID = Subscriptions.ServerID WHERE Agents.Token = ? AND Subscriptions.LicenseKeys = ?"
+def select_all_companies(connectionToDB):
+    query = "SELECT Agents.Token, Subscriptions.LicenseKeys FROM Companies JOIN Agents ON Companies.ID = Agents.CompanyID JOIN Subscriptions ON Agents.ID = Subscriptions.AgentID  WHERE Agents.Token = ? AND Subscriptions.LicenseKeys = ?"
     cursor =  connectionToDB.cursor()
     cursor.execute( query, ( serverToken, license ) )
     
@@ -37,10 +38,10 @@ def selectAllCompanies(connectionToDB):
 def main():
     database = r"/home/thor/Documents/LogOps/AuthenticationService/testDB" #local path, has  to be changed to gereic, or server sided path.
     
-    connection = createConnection(database)
+    connection = create_connection( "testDB" )
 
     with connection:
-        selectAllCompanies(connection)
+        select_all_companies( connection )
     
 
 if __name__ == "__main__":

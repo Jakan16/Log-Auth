@@ -5,9 +5,8 @@ import socket
 import sys
 import sqlite3
 from sqlite3 import Error
-import _thread
 
-def createConnection(db):
+def create_connection(db):
 
     connection = None
 
@@ -17,14 +16,14 @@ def createConnection(db):
         print( exception )
     return connection
 
-def selectAllCompanies(connectionToDB):
+def check_authorization(connectionToDB):
     query = "SELECT Agents.Token, Subscriptions.LicenseKeys FROM Companies JOIN Servers ON Companies.ID = Servers.CompanyID JOIN Subscriptions on Servers.ID = Subscriptions.ServerID WHERE Agents.Token = ? AND Subscriptions.LicenseKeys = ?"
     cursor =  connectionToDB.cursor()
     cursor.execute( query, ( serverToken, license, ) )
 
     rows = cursor.fetchall()
     
-    if rows is  None:
+    if rows is None:
         print("Token or license key not valid")
 # TODO!!! def on_new_client( clientSocket, address ):
 #     while True:
@@ -33,17 +32,17 @@ def selectAllCompanies(connectionToDB):
             
 database = r"/home/thor/Documents/LogOps/AuthenticationService/testDB" #local path, has  to be changed to gereic, or server sided path.
 
-key = jwk.JWK(generate='oct', size=256)
+key = jwk.JWK( generate = 'oct', size = 256 ) 
 keyString = key.export()
 # print( keyString )
 
 
 token = jwt.JWT( header = { "alg": "HS256" }, claims = { "info": "I am a signed Token" }) 
-token.make_signed_token(key)
+token.make_signed_token( key )
 token.serialize()
 
 encryptedToken = jwt.JWT( header = { "alg": "A256KW", "enc": "A256CBC-HS512" }, claims = token.serialize() )
-encryptedToken.make_encrypted_token(key)
+encryptedToken.make_encrypted_token( key )
 encryptedTokenString = encryptedToken.serialize()
 
 socketConnection = socket.socket()
@@ -67,9 +66,9 @@ while True:
     license = jsonObject["license"]
     serverToken = jsonObject["token"]
 
-    dbConnection = createConnection( database )
+    dbConnection = create_connection( 'testDB' )
     with dbConnection:
-        selectAllCompanies(dbConnection)
+        check_authorization( dbConnection )
     dbConnection.close()
 
     connection.send( keyString, encryptedToken.serialize() )

@@ -20,5 +20,6 @@ while True:
     print("Got connection from ", address)
 
     client.send("We are connected.")
-
+    msg = client.recv( 1024 )
+    print( msg )
     client.close()
