@@ -38,7 +38,7 @@ def select_all_companies(connectionToDB):
 def main():
     database = r"/home/thor/Documents/LogOps/AuthenticationService/testDB" #local path, has  to be changed to gereic, or server sided path.
     
-    connection = create_connection( "testDB" )
+    connection = create_connection( "testDB" ) #database path got broken somehow, and cannot find a fix atm.
 
     with connection:
         select_all_companies( connection )

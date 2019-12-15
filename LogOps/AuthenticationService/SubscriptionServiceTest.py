@@ -61,6 +61,18 @@ def receive( socketConnection, end = "EOFEOFEOFEOFX" ):
             incomingData = socketConnection.recv( 1024 )
     return data[ :-len( end ) ]
 
+def send_key_to_decoder( key ):
+    connectionToDecoder = socket.socket()
+    PORT_OF_DECODER = 8001
+    ADDRESS_OF_DECODER = "localhost"
+
+    connectionToDecoder.connect( ( ADDRESS_OF_DECODER, PORT_OF_DECODER ) )
+    send( connectionToDecoder, key.export() )
+    connectionToDecoder.close()
+
+
+
+
 DATABASE = r"/home/thor/Documents/LogOps/AuthenticationService/test.sqlite" #local path, has  to be changed to gereic, or server sided path.
 
 key = jwk.JWK( generate = 'oct', size = 256 ) #Symmetric key for encrypting and decrypting
@@ -80,7 +92,7 @@ def start_server():
         print( "Got connection from ", address )
 
         authenticationString = receive( connection )
-        print( authenticationString )
+        # print( authenticationString )
         jsonObject = json.loads( authenticationString )
 
         license = jsonObject["license"]
@@ -97,7 +109,7 @@ def start_server():
                 if subsIsOkay:
                     update_subscription( dbConnection, cpu, ram, log )
         dbConnection.close()
-        if( authorized and subsIsOkay ):
+        if authorized and subsIsOkay:
             token = jwt.JWT( header = { "alg": "HS256" }, claims = { "info": "I am a signed Token" } ) #Hvad skal claims vaere?
             token.make_signed_token( key )
 
@@ -105,16 +117,18 @@ def start_server():
             encryptedToken.make_encrypted_token( key )
             encryptedTokenString = encryptedToken.serialize()
 
-            jsonString = "{ \"authToken\":\"" + encryptedTokenString +"\" }"
-
-
+            jsonString = '{ "authtoken":"' + encryptedTokenString + '" }'
+            print( jsonString )
             send( connection, jsonString )
             
             connection.close()
         else:
             connection.close()
 
+        
+
 def main():
+    send_key_to_decoder( key )
     start_server()
 
 if __name__ == "__main__":
