@@ -16,10 +16,10 @@ def create_connection( db ):
         print( exception )
     return connection
 
-def check_authorization( connectionToDB, license, serverToken ):
-    query = "SELECT Agents.Token, Subscriptions.LicenseKeys FROM Companies JOIN Agents ON Companies.ID = Agents.CompanyID JOIN Subscriptions ON Agents.ID = Subscriptions.AgentID  WHERE Agents.Token = ? AND Subscriptions.LicenseKeys = ?"
+def check_authorization( connectionToDB, license, serverToken, key ):
+    query = "SELECT Agents.Token, Subscriptions.LicenseKeys FROM Companies JOIN Agents ON Companies.ID = Agents.CompanyID JOIN Subscriptions ON Agents.ID = Subscriptions.AgentID  WHERE Agents.Token = ? AND Subscriptions.LicenseKeys = ? AND Companies.CompanyKey = ?"
     cursor = connectionToDB.cursor()
-    cursor.execute( query, ( serverToken, license, ) )
+    cursor.execute( query, ( serverToken, license, key,) )
 
     rows = cursor.fetchall()
 
@@ -73,7 +73,7 @@ def send_key_to_decoder( key ):
 
 
 
-DATABASE = r"/home/thor/Documents/LogOps/AuthenticationService/test.sqlite" #local path, has  to be changed to gereic, or server sided path.
+DATABASE = r"/home/thor/Documents/LogOps/AuthenticationService/test.sqlite" #local path, has  to be changed to generic, or server sided path.
 
 key = jwk.JWK( generate = 'oct', size = 256 ) #Symmetric key for encrypting and decrypting
 
@@ -94,7 +94,7 @@ def start_server():
         authenticationString = receive( connection )
         # print( authenticationString )
         jsonObject = json.loads( authenticationString )
-
+        companyKey = jsonObject["key"]
         license = jsonObject["license"]
         serverToken = jsonObject["token"]
         cpu = jsonObject["cpu"]
@@ -103,7 +103,7 @@ def start_server():
 
         dbConnection = create_connection( 'testDB' ) #DATABASE path got broken somehow, and cannot find a fix atm.
         with dbConnection:
-            authorized = check_authorization( dbConnection, license, serverToken )
+            authorized = check_authorization( dbConnection, license, serverToken, companyKey )
             if authorized:
                 subsIsOkay = check_subscription( dbConnection, cpu, ram, log )
                 if subsIsOkay:
