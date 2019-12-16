@@ -39,7 +39,7 @@ def create_new_company( connectionToDB, name, autoGenKey ):
     cursor = connectionToDB.cursor()
     cursor.execute( query, ( name, autoGenKey, ) )
 
-DATABASE = r"/home/thor/Documents/LogOps/AuthenticationService/test.sqlite" #local path, has  to be changed to generic, or server sided path.
+DATABASE = r"/home/thor/Documents/LogOps/AuthenticationService/testDB.sqlite" #local path, has to be changed to generic, or server sided path.
 PORT = 8002
 socketConnection = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
 socketConnection.bind( ( '', PORT ) )
@@ -54,7 +54,7 @@ def service_start():
 
         name = newCompanyJson[ "name" ]
         randomKey = uuid.uuid4()
-        dbConnection = create_connection( DATABASE ) 
+        dbConnection = create_connection( 'testDB' ) #Should be variable path
         with dbConnection:
             create_new_company( dbConnection, name, randomKey )
         dbConnection.close()
