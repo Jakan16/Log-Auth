@@ -58,6 +58,8 @@ def service_start():
         with dbConnection:
             create_new_company( dbConnection, name, randomKey )
         dbConnection.close()
+        jsonString = '{ "companykey":"' + randomKey + '" }'
+        send( connection, jsonString )
         connection.close()
 
 def main():
