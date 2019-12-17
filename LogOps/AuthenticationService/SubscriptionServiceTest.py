@@ -17,7 +17,7 @@ def create_connection( db ):
     return connection
 
 def check_authorization( connectionToDB, license, serverToken, key ):
-    query = "SELECT Agents.Token, Subscriptions.LicenseKeys FROM Companies JOIN Agents ON Companies.ID = Agents.CompanyID JOIN Subscriptions ON Agents.ID = Subscriptions.AgentID  WHERE Agents.Token = ? AND Subscriptions.LicenseKeys = ? AND Companies.CompanyKey = ?"
+    query = "SELECT Agents.Token, Agents.LicenseKeys FROM Companies JOIN Agents ON Companies.ID = Agents.CompanyID  WHERE Agents.Token = ? AND Agents.LicenseKeys = ? AND Companies.CompanyKey = ?"
     cursor = connectionToDB.cursor()
     cursor.execute( query, ( serverToken, license, key,) )
 
@@ -71,12 +71,9 @@ def send_key_to_decoder( key ):
     connectionToDecoder.close()
 
 
-
-
-DATABASE = r"/home/thor/Documents/LogOps/AuthenticationService/test.sqlite" #local path, has  to be changed to generic, or server sided path.
+DATABASE = r"/home/thor/Documents/LogOps/AuthenticationService/testDB.sqlite" #local path, has  to be changed to generic, or server sided path.
 
 key = jwk.JWK( generate = 'oct', size = 256 ) #Symmetric key for encrypting and decrypting
-
 
 
 PORT = 8000
@@ -97,19 +94,19 @@ def start_server():
         companyKey = jsonObject["key"]
         license = jsonObject["license"]
         serverToken = jsonObject["token"]
-        cpu = jsonObject["cpu"]
-        ram = jsonObject["ram"]
-        log = jsonObject["log"]
+        # cpu = jsonObject["cpu"]
+        # ram = jsonObject["ram"]
+        # log = jsonObject["log"]
 
         dbConnection = create_connection( 'testDB' ) #DATABASE path got broken somehow, and cannot find a fix atm.
         with dbConnection:
             authorized = check_authorization( dbConnection, license, serverToken, companyKey )
-            if authorized:
-                subsIsOkay = check_subscription( dbConnection, cpu, ram, log )
-                if subsIsOkay:
-                    update_subscription( dbConnection, cpu, ram, log )
+            # if authorized:
+            #     subsIsOkay = check_subscription( dbConnection, cpu, ram, log )
+            #     if subsIsOkay:
+            #         update_subscription( dbConnection, cpu, ram, log )
         dbConnection.close()
-        if authorized and subsIsOkay:
+        if authorized: # and subsIsOkay:
             token = jwt.JWT( header = { "alg": "HS256" }, claims = { "info": "I am a signed Token" } ) #Hvad skal claims vaere?
             token.make_signed_token( key )
 
@@ -124,8 +121,6 @@ def start_server():
             connection.close()
         else:
             connection.close()
-
-        
 
 def main():
     send_key_to_decoder( key )
