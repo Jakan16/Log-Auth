@@ -70,7 +70,7 @@ class S(BaseHTTPRequestHandler):
                 dbConnection = create_connection( 'testDB' )
                 with dbConnection:
                     create_new_company( dbConnection, name, str(companyKey), publicKey )
-                    succes = check_if_company_exists( dbConnection, companyKey )
+                    succes = check_if_company_exists( dbConnection, str(companyKey) )
                 dbConnection.close()
                 data["response"] = succes
                 # print(data)
@@ -129,40 +129,56 @@ class S(BaseHTTPRequestHandler):
         # Create a new agent in the database.
         if method == "newagent":
             name = jsonObject["name"]
-            companyKey = jsonObject["companykey"]
+            token = jsonObject["token"]
+            claims = verify_token( token )
+            if claims is False:
+                data["response"] = claims
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            else:
+                seq = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+                licenseKey = "-".join("".join(random.choice(seq) for _ in range(4)) for _ in range(6))
 
-            seq = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
-            licenseKey = "-".join("".join(random.choice(seq) for _ in range(4)) for _ in range(6))
+                dbConnection = create_connection( 'testDB' )
+                with dbConnection:
+                    succes = create_new_agent( dbConnection, name, companyKey, licenseKey ) #Query not done
+                dbConnection.close()
+                data["response"] = succes
 
-            dbConnection = create_connection( 'testDB' )
-            with dbConnection:
-                succes = create_new_agent( dbConnection, name, companyKey, licenseKey ) #Query not done
-            dbConnection.close()
-            data["response"] = succes
-
-            self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
         
         # Fetches all agents of a given company.
         if method == "agentlist":
-            companyKey = jsonObject["companykey"]
-            dbConnection = create_connection( 'testDB' )
-            with dbConnection:
-                responseList = list_agents( dbConnection, companyKey )
-            dbConnection.close()
-            data["listofagents"] = responseList
-            self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            token = jsonObject["token"]
+            claims = verify_token( token )
+            if claims is False:
+                data["response"] = claims
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            else:
+                companyPublic = claims["companypublic"]
+                dbConnection = create_connection( 'testDB' )
+                with dbConnection:
+                    responseList = list_agents( dbConnection, companyPublic )
+                dbConnection.close()
+                data["listofagents"] = responseList
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
 
         # Deletes a specified agent in the database.
         if method == "deleteagent":
-            companyKey = jsonObject["companykey"]
+            token = jsonObject["token"]
             agentID = jsonObject["agentid"]
-            dbConnection = create_connection( 'testDB' )
-            with dbConnection:
-                succes = delete_agent( dbConnection, companyKey, agentID )
-            dbConnection.close()
-            data["response"] = succes
+            claims = verify_token( token )
+            if claims is False:
+                data["response"] = claims
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))  
+            else:          
+                companyPublic = claims["companypublic"]
+                dbConnection = create_connection( 'testDB' )
+                with dbConnection:
+                    succes = delete_agent( dbConnection, companyPublic, agentID )
+                dbConnection.close()
+                data["response"] = succes
 
-            self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
 
         # Updates subscription values for a given company.
         if method == "updatesubscription":
@@ -171,13 +187,12 @@ class S(BaseHTTPRequestHandler):
             token = jsonObject["token"]
             claims = verify_token( token )
             if claims is False:
+                print( claims )
                 data["response"] = claims
                 self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
             else:
                 tmp = json.loads( claims )
                 companyPublic = tmp["companypublic"]
-
-
                 dbConnection = create_connection( 'testDB' )
                 with dbConnection:
                     succes = update_subscription( dbConnection, cpu, ram, companyPublic )
@@ -189,35 +204,42 @@ class S(BaseHTTPRequestHandler):
                 
         # Fetches cpu, ram records for a given company.
         if method == "getsubscription":
-            companyPublic = jsonObject["companypublic"]
             token = jsonObject["token"]
             claims = verify_token( token )
             if claims is False:
                 data["response"] = claims
                 self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
-            else: 
+            else:
+                tmp = json.loads( claims )
+                companyPublic = tmp["companypublic"]
                 dbConnection = create_connection( 'testDB' )
                 with dbConnection:
                     cpuAndRamList = get_subscription( dbConnection, companyPublic )
                 dbConnection.close()
-                print( cpuAndRamList )
-                data["cpu"] = cpuAndRamList[0][0]
-                data["ram"] = cpuAndRamList[0][1]
-
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+                if cpuAndRamList is False:
+                    data["response"] = False
+                    self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+                else:
+                    data["cpu"] = cpuAndRamList[0][0]
+                    data["ram"] = cpuAndRamList[0][1]
+                    self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
 
         # Checks if the client is authorized, by looking up CompanyKey and LicenseKey in the databas.
         # If authorized, generates a JWT and sends it to client.
         if method == "gettoken":
             companyKey = jsonObject["companykey"]
-            license = jsonObject["license"]
+            license = jsonObject["licensekey"]
             
             dbConnection = create_connection( 'testDB' )
             with dbConnection:
                 authorized = check_authorization( dbConnection, license, companyKey )
                 agentlist = get_agent_name_and_id( dbConnection, license )
-                agentName = agentlist[0][0]
-                agentID = agentlist[0][1]
+                if agentlist is False:
+                    agentName = None
+                    agentID = None
+                else:
+                    agentName = agentlist[0][0]
+                    agentID = agentlist[0][1]
             dbConnection.close()
             if authorized:
                 token = make_token( companyKey, agentName, agentID )
@@ -252,7 +274,14 @@ def run(server_class=HTTPServer, handler_class=S, addr="localhost", port=8000):
     httpd.serve_forever()
 
 def make_token( companyKey, agentName, agentID ):
-    tmp = {"agentid": agentID, "agentname": agentName, "companykey": companyKey}
+
+    dbConnection = create_connection( 'testDB' )
+    with dbConnection:
+        companyPublicInList = get_company_public( dbConnection, companyKey )
+        companyPublic = companyPublicInList[0][0]
+    dbConnection.close()
+
+    tmp = {"agentid": agentID, "agentname": agentName, "companypublic": companyPublic}
     tmp2 = json.dumps(tmp)
     token = jwt.JWT( header = {"alg": "HS256"},
                      claims = tmp2)
@@ -303,7 +332,7 @@ def create_new_company( connectionToDB, name, companyKey, publicKey ):
     
 
 
-def check_if_company_exists( connectionToDB, company ):
+def check_if_company_exists( connectionToDB, companyKey ):
     queryCheckCreation = "SELECT * FROM Companies JOIN Subscriptions ON Companies.ID = Subscriptions.CompanyID WHERE Companies.CompanyKey = ?"
     cursor = connectionToDB.cursor()
     cursor.execute( queryCheckCreation, ( companyKey, ) )
@@ -318,7 +347,7 @@ def check_if_company_exists( connectionToDB, company ):
 
 def list_companies( connectionToDB ):
     connectionToDB.row_factory = sqlite3.Row
-    query = "SELECT Name, CompanyKey, CompanyPublic FROM Companies?"
+    query = "SELECT CompanyName, CompanyKey, CompanyPublic FROM Companies"
     cursor = connectionToDB.cursor()
     cursor.execute( query )
 
@@ -341,21 +370,35 @@ def create_new_agent( connectionToDB, name, companyKey, licenseKey ):
     else:
         return True
 
-def list_agents( connectionToDB, companyKey ):
-    connectionToDB.row_factory = sqlite3.Row
-    query = "SELECT Agents.name, Agents.LicenseKey, Agents.ID FROM Agents JOIN Companies ON Companies.ID = Agents.CompanyID WHERE Companies.CompanyKey = ?"
+
+def get_company_public( connectionToDB, companyKey ):
+    query = "SELECT CompanyPublic FROM Companies WHERE CompanyKey = ?"
     cursor = connectionToDB.cursor()
     cursor.execute( query, ( companyKey, ) )
+
+    rows = cursor.fetchall()
+
+    if len(rows) is 0:
+        return False
+    else:
+        return rows
+
+
+def list_agents( connectionToDB, companyPublic ):
+    connectionToDB.row_factory = sqlite3.Row
+    query = "SELECT Agents.name, Agents.LicenseKey, Agents.ID FROM Agents JOIN Companies ON Companies.ID = Agents.CompanyID WHERE Companies.CompanyPublic = ?"
+    cursor = connectionToDB.cursor()
+    cursor.execute( query, ( companyPublic, ) )
 
     rows = cursor.fetchall()
     listOfRecords = [dict(ix) for ix in rows]
     return listOfRecords
 
-def delete_agent( connectionToDB, companyKey, agentID ):
-    query = "DELETE FROM Agents WHERE ID = ? AND companyID IN (SELECT Companies.ID FROM Companies WHERE Companies.CompanyKey = ?)"
+def delete_agent( connectionToDB, companyPublic, agentID ):
+    query = "DELETE FROM Agents WHERE ID = ? AND companyID IN (SELECT Companies.ID FROM Companies WHERE Companies.CompanyPublic = ?)"
     query2 = "SELECT * FROM Agents WHERE ID = ?"
     cursor = connectionToDB.cursor()
-    cursor.execute( query, ( agentID, companyKey, ) )
+    cursor.execute( query, ( agentID, companyPublic, ) )
     cursor.execute( query2, ( agentID, ) )
     
     rows = cursor.fetchall()
@@ -385,7 +428,7 @@ def delete_company( connectionToDB, companyPublic ):
 
 def update_subscription( connectionToDB, cpu, ram, companyPublic ):
     query = "UPDATE Subscriptions SET CPU_USE = ?, RAM_USE = ? WHERE CompanyID = ( SELECT ID FROM Companies WHERE CompanyPublic = ?)"
-    query2 = "SELECT CPU, RAM FROM Subscriptions WHERE CPU_USE = ? AND RAM_USE = ? AND CompanyID = (SELECT ID FROM Companies WHERE CompanyPublic = ?)"
+    query2 = "SELECT CPU_USE, RAM_USE FROM Subscriptions WHERE CPU_USE = ? AND RAM_USE = ? AND CompanyID = (SELECT ID FROM Companies WHERE CompanyPublic = ?)"
     cursor = connectionToDB.cursor()
     cursor.execute( query, ( cpu, ram, companyPublic, ) )
     cursor.execute( query2, ( cpu, ram, companyPublic ) )
@@ -404,7 +447,10 @@ def get_agent_name_and_id( connectionToDB, license ):
     cursor.execute( query, ( license, ) )
 
     rows = cursor.fetchall()
-    return rows
+    if len(rows) is 0:
+        return False
+    else:
+        return rows
 
 
 def get_subscription( connectionToDB, companyPublic ):
@@ -413,14 +459,18 @@ def get_subscription( connectionToDB, companyPublic ):
     cursor.execute( query, ( companyPublic, ) )
 
     rows = cursor.fetchall()
-    return rows
+    if len(rows) is 0:
+        return False
+    else:
+        return rows
+
 
 
 if __name__ == "__main__":
 
     # Server Key insures that malicious actions cannot take place
     SERVERKEY = "V%ojaT0pX}w12db3@*M+_cq}xB8s4+"
-    print(serverKey)
+    print(SERVERKEY)
     # New Key when the service restarts!
     k = {"k":"kASHDEnWf_SW4SAYsO--hyRXPGgTV06ZE1bZBp4ZSxE","kty":"oct"}
 
