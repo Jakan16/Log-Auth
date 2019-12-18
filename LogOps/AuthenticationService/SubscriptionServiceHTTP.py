@@ -112,19 +112,19 @@ class S(BaseHTTPRequestHandler):
 
         # Deletes all traces of a given company, including agents and subscription data. 
         if method == "deletecompany":
-            publicKey = jsonObject["publickey"]
+            CompanyPublic = jsonObject["companypublic"]
             serverKey = jsonObject["serverkey"]
             if serverKey == SERVERKEY:
                 dbConnection = create_connection( 'testDB' )
                 with dbConnection:
-                    succes = delete_company( dbConnection, publicKey )
+                    succes = delete_company( dbConnection, CompanyPublic )
                 dbConnection.close()
                 data["response"] = succes
                 self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
             else:
                 data["response"] = False
                 self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
-                
+
 
         # Create a new agent in the database.
         if method == "newagent":
@@ -168,35 +168,50 @@ class S(BaseHTTPRequestHandler):
         if method == "updatesubscription":
             cpu = jsonObject["cpu"]
             ram = jsonObject["ram"]
-            companyKey = jsonObject["companykey"]
-            dbConnection = create_connection( 'testDB' )
-            with dbConnection:
-                succes = update_subscription( dbConnection, cpu, ram, companyKey )
-            dbConnection.close()
-            data["response"] = succes
+            token = jsonObject["token"]
+            claims = verify_token( token )
+            if claims is False:
+                data["response"] = claims
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            else:
+                tmp = json.loads( claims )
+                companyPublic = tmp["companypublic"]
 
-            self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+
+                dbConnection = create_connection( 'testDB' )
+                with dbConnection:
+                    succes = update_subscription( dbConnection, cpu, ram, companyPublic )
+                dbConnection.close()
+                data["response"] = succes
+
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
         
                 
         # Fetches cpu, ram records for a given company.
         if method == "getsubscription":
-            companyKey = jsonObject["companykey"]
-            dbConnection = create_connection( 'testDB' )
-            with dbConnection:
-                cpuAndRamList = get_subscription( dbConnection, companyKey )
-            dbConnection.close()
-            print( cpuAndRamList )
-            data["cpu"] = cpuAndRamList[0][0]
-            data["ram"] = cpuAndRamList[0][1]
+            companyPublic = jsonObject["companypublic"]
+            token = jsonObject["token"]
+            claims = verify_token( token )
+            if claims is False:
+                data["response"] = claims
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            else: 
+                dbConnection = create_connection( 'testDB' )
+                with dbConnection:
+                    cpuAndRamList = get_subscription( dbConnection, companyPublic )
+                dbConnection.close()
+                print( cpuAndRamList )
+                data["cpu"] = cpuAndRamList[0][0]
+                data["ram"] = cpuAndRamList[0][1]
 
-            self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
 
         # Checks if the client is authorized, by looking up CompanyKey and LicenseKey in the databas.
         # If authorized, generates a JWT and sends it to client.
         if method == "gettoken":
             companyKey = jsonObject["companykey"]
             license = jsonObject["license"]
-
+            
             dbConnection = create_connection( 'testDB' )
             with dbConnection:
                 authorized = check_authorization( dbConnection, license, companyKey )
@@ -213,13 +228,13 @@ class S(BaseHTTPRequestHandler):
                 
         if method == "verify":
             encryptedToken = jsonObject["token"]
-            tmp = verify_token( encryptedToken )
-            if tmp is False:
-                data["response"] = tmp
+            claims = verify_token( encryptedToken )
+            if claims is False:
+                data["response"] = claims
                 self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
             else:
                 # print( tmp )
-                data = tmp
+                data = claims
                 self.wfile.write(data.encode(encoding='utf_8'))
             
         
@@ -259,7 +274,7 @@ def verify_token( token ):
 
 
 def check_authorization( connectionToDB, license, key ):
-    query = "SELECT Agents.LicenseKey FROM Companies JOIN Agents ON Companies.ID = Agents.CompanyID  WHERE Agents.LicenseKey = ? AND Companies.CompanyKey = ?"
+    query = "SELECT Agents.LicenseKey FROM Companies JOIN Agents ON Companies.ID = Agents.CompanyID  WHERE Agents.LicenseKey = ? OR Companies.CompanyKey = ?"
     cursor = connectionToDB.cursor()
     cursor.execute( query, ( license, key, ) )
 
@@ -350,16 +365,16 @@ def delete_agent( connectionToDB, companyKey, agentID ):
     else:
         return False
 
-def delete_company( connectionToDB, publicKey ):
-    queryDeleteCompany = "DELETE FROM Companies WHERE PublicKey = ?"
-    queryDeleteAllAgents = "DELETE FROM Agents WHERE CompanyID = (SELECT ID FROM Companies WHERE PublicKey = ?)"
-    queryDeleteSubscription = "DELETE FROM Subscriptions WHERE CompanyID = (SELECT ID FROM Companies WHERE PublicKey = ?)"
-    queryCheckIfDeleted = "SELECT * FROM Companies JOIN Agents ON Companies.ID = Agents.CompanyID JOIN Subscriptions ON Companies.ID = Subscriptions.CompanyID WHERE Companies.PublicKey = ?"
+def delete_company( connectionToDB, companyPublic ):
+    queryDeleteCompany = "DELETE FROM Companies WHERE CompanyPublic = ?"
+    queryDeleteAllAgents = "DELETE FROM Agents WHERE CompanyID = (SELECT ID FROM Companies WHERE CompanyPublic = ?)"
+    queryDeleteSubscription = "DELETE FROM Subscriptions WHERE CompanyID = (SELECT ID FROM Companies WHERE CompanyPublic = ?)"
+    queryCheckIfDeleted = "SELECT * FROM Companies JOIN Agents ON Companies.ID = Agents.CompanyID JOIN Subscriptions ON Companies.ID = Subscriptions.CompanyID WHERE Companies.CompanyPublic = ?"
     cursor = connectionToDB.cursor()
-    cursor.execute( queryDeleteSubscription, ( publicKey, ) )
-    cursor.execute( queryDeleteAllAgents, ( publicKey, ) )
-    cursor.execute( queryDeleteCompany, ( publicKey, ) )
-    cursor.execute( queryCheckIfDeleted, ( publicKey, ) )
+    cursor.execute( queryDeleteSubscription, ( companyPublic, ) )
+    cursor.execute( queryDeleteAllAgents, ( companyPublic, ) )
+    cursor.execute( queryDeleteCompany, ( companyPublic, ) )
+    cursor.execute( queryCheckIfDeleted, ( companyPublic, ) )
 
     rows = cursor.fetchall()
 
@@ -368,12 +383,12 @@ def delete_company( connectionToDB, publicKey ):
     else:
         return False
 
-def update_subscription( connectionToDB, cpu, ram, companyKey ):
-    query = "UPDATE Subscriptions SET CPU_USE = ?, RAM_USE = ? WHERE CompanyID = ( SELECT ID FROM Companies WHERE CompanyKey = ?)"
-    query2 = "SELECT CPU, RAM FROM Subscriptions WHERE CPU_USE = ? AND RAM_USE = ? AND CompanyID = (SELECT ID FROM Companies WHERE CompanyKey = ?)"
+def update_subscription( connectionToDB, cpu, ram, companyPublic ):
+    query = "UPDATE Subscriptions SET CPU_USE = ?, RAM_USE = ? WHERE CompanyID = ( SELECT ID FROM Companies WHERE CompanyPublic = ?)"
+    query2 = "SELECT CPU, RAM FROM Subscriptions WHERE CPU_USE = ? AND RAM_USE = ? AND CompanyID = (SELECT ID FROM Companies WHERE CompanyPublic = ?)"
     cursor = connectionToDB.cursor()
-    cursor.execute( query, ( cpu, ram, companyKey, ) )
-    cursor.execute( query2, ( cpu, ram, companyKey ) )
+    cursor.execute( query, ( cpu, ram, companyPublic, ) )
+    cursor.execute( query2, ( cpu, ram, companyPublic ) )
     
     rows = cursor.fetchall()
 
@@ -392,10 +407,10 @@ def get_agent_name_and_id( connectionToDB, license ):
     return rows
 
 
-def get_subscription( connectionToDB, companyKey ):
-    query = "SELECT Subscriptions.CPU_USE, Subscriptions.RAM_USE FROM Subscriptions JOIN Companies ON Subscriptions.CompanyID = Companies.ID WHERE Companies.CompanyKey = ?"
+def get_subscription( connectionToDB, companyPublic ):
+    query = "SELECT Subscriptions.CPU_USE, Subscriptions.RAM_USE FROM Subscriptions JOIN Companies ON Subscriptions.CompanyID = Companies.ID WHERE Companies.CompanyPublic = ?"
     cursor = connectionToDB.cursor()
-    cursor.execute( query, ( companyKey, ) )
+    cursor.execute( query, ( companyPublic, ) )
 
     rows = cursor.fetchall()
     return rows
