@@ -60,20 +60,76 @@ class S(BaseHTTPRequestHandler):
         # Create a new company in the database.
         if method == "newcompany":
             name = jsonObject[ "name" ]
-            randomKey = uuid.uuid4()
-            dbConnection = create_connection( 'testDB' )
-            with dbConnection:
-                create_new_company( dbConnection, name, str(randomKey) )
-            dbConnection.close()
-            data["name"] = name
-            data["key"] = str(randomKey)
-            # print(data)
-            self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            serverKey = jsonObject[ "serverkey" ]
+
+            if serverKey == SERVERKEY:
+                companyKey = uuid.uuid4()
+                seq = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+                publicKey = "".join(random.choice(seq) for _ in range(16))
+
+                dbConnection = create_connection( 'testDB' )
+                with dbConnection:
+                    create_new_company( dbConnection, name, str(companyKey), publicKey )
+                    succes = check_if_company_exists( dbConnection, companyKey )
+                dbConnection.close()
+                data["response"] = succes
+                # print(data)
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            else:
+                data["response"] = False
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
         
+
+        # Checks if a company exists in the database.
+        if method == "companykeycheck":
+            companyKey = jsonObject["companykey"]
+            serverKey = jsonObject["serverkey"]
+            if serverKey == SERVERKEY:
+                dbConnection = create_connection( 'testDB' )
+                with dbConnection:
+                    succes = check_if_company_exists( dbConnection, companyKey )
+                dbConnection.close()
+                data["response"] = succes
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            else:
+                data["response"] = False
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+
+        # Fetches all records of companies.
+        if method == "getcompanies":
+            serverKey = jsonObject["serverkey"]
+            if serverKey == SERVERKEY:
+                dbConnection = create_connection( 'testDB' )
+                with dbConnection:
+                    responseList = list_companies( dbConnection )
+                dbConnection.close()
+                data["listofcompanies"] = responseList
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            else:
+                data["respose"] = False
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+        
+
+        # Deletes all traces of a given company, including agents and subscription data. 
+        if method == "deletecompany":
+            publicKey = jsonObject["publickey"]
+            serverKey = jsonObject["serverkey"]
+            if serverKey == SERVERKEY:
+                dbConnection = create_connection( 'testDB' )
+                with dbConnection:
+                    succes = delete_company( dbConnection, publicKey )
+                dbConnection.close()
+                data["response"] = succes
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            else:
+                data["response"] = False
+                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+                
+
         # Create a new agent in the database.
         if method == "newagent":
             name = jsonObject["name"]
-            companyKey = jsonObject["key"]
+            companyKey = jsonObject["companykey"]
 
             seq = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
             licenseKey = "-".join("".join(random.choice(seq) for _ in range(4)) for _ in range(6))
@@ -88,7 +144,7 @@ class S(BaseHTTPRequestHandler):
         
         # Fetches all agents of a given company.
         if method == "agentlist":
-            companyKey = jsonObject["key"]
+            companyKey = jsonObject["companykey"]
             dbConnection = create_connection( 'testDB' )
             with dbConnection:
                 responseList = list_agents( dbConnection, companyKey )
@@ -98,7 +154,7 @@ class S(BaseHTTPRequestHandler):
 
         # Deletes a specified agent in the database.
         if method == "deleteagent":
-            companyKey = jsonObject["key"]
+            companyKey = jsonObject["companykey"]
             agentID = jsonObject["agentid"]
             dbConnection = create_connection( 'testDB' )
             with dbConnection:
@@ -112,7 +168,7 @@ class S(BaseHTTPRequestHandler):
         if method == "updatesubscription":
             cpu = jsonObject["cpu"]
             ram = jsonObject["ram"]
-            companyKey = jsonObject["key"]
+            companyKey = jsonObject["companykey"]
             dbConnection = create_connection( 'testDB' )
             with dbConnection:
                 succes = update_subscription( dbConnection, cpu, ram, companyKey )
@@ -121,20 +177,10 @@ class S(BaseHTTPRequestHandler):
 
             self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
         
-        # Deletes all traces of a given company, including agents and subscription data. 
-        if method == "deletecompany":
-            companyKey = jsonObject["key"]
-            dbConnection = create_connection( 'testDB' )
-            with dbConnection:
-                succes = delete_company( dbConnection, companyKey )
-            dbConnection.close()
-            data["response"] = succes
-
-            self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
-        
+                
         # Fetches cpu, ram records for a given company.
         if method == "getsubscription":
-            companyKey = jsonObject["key"]
+            companyKey = jsonObject["companykey"]
             dbConnection = create_connection( 'testDB' )
             with dbConnection:
                 cpuAndRamList = get_subscription( dbConnection, companyKey )
@@ -148,7 +194,7 @@ class S(BaseHTTPRequestHandler):
         # Checks if the client is authorized, by looking up CompanyKey and LicenseKey in the databas.
         # If authorized, generates a JWT and sends it to client.
         if method == "gettoken":
-            companyKey = jsonObject["key"]
+            companyKey = jsonObject["companykey"]
             license = jsonObject["license"]
 
             dbConnection = create_connection( 'testDB' )
@@ -233,12 +279,37 @@ def create_connection( db ):
     return connection
 
 
-def create_new_company( connectionToDB, name, autoGenKey ):
-    queryCreateCompany = "INSERT INTO Companies VALUES (NULL, ?, ?)"
-    queryCreateBlankSubscription = "INSERT INTO Subscriptions VALUES (NULL, CompanyID = (SELECT ID FROM Companies WHERE CompanyKey = ?), 0, 0)"
+def create_new_company( connectionToDB, name, companyKey, publicKey ):
+    queryCreateCompany = "INSERT INTO Companies VALUES (NULL, ?, ?, ?)"
+    queryCreateBlankSubscription = "INSERT INTO Subscriptions SELECT NULL, Companies.ID, 0, 0 FROM Companies WHERE Companies.CompanyKey = ?"
     cursor = connectionToDB.cursor()
-    cursor.execute( queryCreateCompany, ( name, autoGenKey, ) )
-    cursor.execute( queryCreateBlankSubscription, ( autoGenKey ) )
+    cursor.execute( queryCreateCompany, ( name, companyKey, publicKey, ) )
+    cursor.execute( queryCreateBlankSubscription, ( companyKey, ) )
+    
+
+
+def check_if_company_exists( connectionToDB, company ):
+    queryCheckCreation = "SELECT * FROM Companies JOIN Subscriptions ON Companies.ID = Subscriptions.CompanyID WHERE Companies.CompanyKey = ?"
+    cursor = connectionToDB.cursor()
+    cursor.execute( queryCheckCreation, ( companyKey, ) )
+
+    rows = cursor.fetchall()
+
+    if len(rows) is 0:
+        return False
+    else: 
+        return True
+
+
+def list_companies( connectionToDB ):
+    connectionToDB.row_factory = sqlite3.Row
+    query = "SELECT Name, CompanyKey, CompanyPublic FROM Companies?"
+    cursor = connectionToDB.cursor()
+    cursor.execute( query )
+
+    rows = cursor.fetchall()
+    listOfRecords = [dict(ix) for ix in rows]
+    return listOfRecords
 
 
 def create_new_agent( connectionToDB, name, companyKey, licenseKey ):
@@ -262,8 +333,8 @@ def list_agents( connectionToDB, companyKey ):
     cursor.execute( query, ( companyKey, ) )
 
     rows = cursor.fetchall()
-    tmp = [dict(ix) for ix in rows]
-    return tmp
+    listOfRecords = [dict(ix) for ix in rows]
+    return listOfRecords
 
 def delete_agent( connectionToDB, companyKey, agentID ):
     query = "DELETE FROM Agents WHERE ID = ? AND companyID IN (SELECT Companies.ID FROM Companies WHERE Companies.CompanyKey = ?)"
@@ -279,16 +350,16 @@ def delete_agent( connectionToDB, companyKey, agentID ):
     else:
         return False
 
-def delete_company( connectionToDB, companyKey ):
-    queryDeleteCompany = "DELETE FROM Companies WHERE CompanyKey = ?"
-    queryDeleteAllAgents = "DELETE FROM Agents WHERE CompanyID = (SELECT ID FROM Companies WHERE CompanyKey = ?)"
-    queryDeleteSubscription = "DELETE FROM Subscriptions WHERE CompanyID = (SELECT ID FROM Companies WHERE CompanyKey = ?)"
-    queryCheckIfDeleted = "SELECT * FROM Companies JOIN Agents ON Companies.ID = Agents.CompanyID JOIN Subscriptions ON Companies.ID = Subscriptions.CompanyID WHERE Companies.CompanyKey = ?"
+def delete_company( connectionToDB, publicKey ):
+    queryDeleteCompany = "DELETE FROM Companies WHERE PublicKey = ?"
+    queryDeleteAllAgents = "DELETE FROM Agents WHERE CompanyID = (SELECT ID FROM Companies WHERE PublicKey = ?)"
+    queryDeleteSubscription = "DELETE FROM Subscriptions WHERE CompanyID = (SELECT ID FROM Companies WHERE PublicKey = ?)"
+    queryCheckIfDeleted = "SELECT * FROM Companies JOIN Agents ON Companies.ID = Agents.CompanyID JOIN Subscriptions ON Companies.ID = Subscriptions.CompanyID WHERE Companies.PublicKey = ?"
     cursor = connectionToDB.cursor()
-    cursor.execute( queryDeleteSubscription, ( companyKey, ) )
-    cursor.execute( queryDeleteAllAgents, ( companyKey, ) )
-    cursor.execute( queryDeleteCompany, ( companyKey, ) )
-    cursor.execute( queryCheckIfDeleted, ( companyKey, ) )
+    cursor.execute( queryDeleteSubscription, ( publicKey, ) )
+    cursor.execute( queryDeleteAllAgents, ( publicKey, ) )
+    cursor.execute( queryDeleteCompany, ( publicKey, ) )
+    cursor.execute( queryCheckIfDeleted, ( publicKey, ) )
 
     rows = cursor.fetchall()
 
@@ -332,6 +403,9 @@ def get_subscription( connectionToDB, companyKey ):
 
 if __name__ == "__main__":
 
+    # Server Key insures that malicious actions cannot take place
+    SERVERKEY = "V%ojaT0pX}w12db3@*M+_cq}xB8s4+"
+    print(serverKey)
     # New Key when the service restarts!
     k = {"k":"kASHDEnWf_SW4SAYsO--hyRXPGgTV06ZE1bZBp4ZSxE","kty":"oct"}
 
