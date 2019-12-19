@@ -38,7 +38,7 @@ class S(BaseHTTPRequestHandler):
         """This just generates an HTML document that includes `message`
         in the body. Override, or re-write this do do more interesting stuff.
         """
-        content = f"<html><body><h1>{message}</h1></body></html>"
+        content = "<html><body><h1>{message}</h1></body></html>"
         return content.encode("utf8")  # NOTE: must return a bytes object!
 
     def do_GET(self):
@@ -269,7 +269,7 @@ def run(server_class=HTTPServer, handler_class=S, addr="localhost", port=8000):
     server_address = (addr, port)
     httpd = server_class(server_address, handler_class)
 
-    print(f"Starting httpd server on {addr}:{port}")
+    print("Starting httpd server on {addr}:{port}")
     httpd.serve_forever()
 
 def make_token( companyKey, agentName = None, agentID = None ):
@@ -502,7 +502,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-l",
         "--listen",
-        default="localhost",
+        default="0.0.0.0",
         help="Specify the IP address on which the server listens",
     )
     parser.add_argument(
