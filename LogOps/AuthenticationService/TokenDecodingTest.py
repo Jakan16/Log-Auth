@@ -35,7 +35,7 @@ while True:
 
     encryptionKeyString = receive( connection )
     encryptionKey = json.loads( encryptionKeyString )
-    print( encryptionKey )
+    print( type(encryptionKey) )
 
 
     connection, address = socketConnection.accept()

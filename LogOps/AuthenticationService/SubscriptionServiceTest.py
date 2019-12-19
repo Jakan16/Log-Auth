@@ -76,7 +76,7 @@ DATABASE = r"/home/thor/Documents/LogOps/AuthenticationService/testDB.sqlite" #l
 key = jwk.JWK( generate = 'oct', size = 256 ) #Symmetric key for encrypting and decrypting
 
 
-PORT = 8000
+PORT = 8003
 socketConnection = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
 socketConnection.bind( ( '', PORT ) )
 socketConnection.listen( 128 )
