@@ -272,7 +272,7 @@ def run(server_class=HTTPServer, handler_class=S, addr="localhost", port=8000):
     print(f"Starting httpd server on {addr}:{port}")
     httpd.serve_forever()
 
-def make_token( companyKey, agentName = None, agentID = None ):
+def make_token( companyKey, agentName, agentID ):
 
     dbConnection = create_connection( 'testDB' )
     with dbConnection:
