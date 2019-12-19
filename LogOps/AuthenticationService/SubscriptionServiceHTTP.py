@@ -236,16 +236,21 @@ class S(BaseHTTPRequestHandler):
                     agentID = agentlist[0][1]
                 companyName = get_company_name( dbConnection, companyKey )
             dbConnection.close()
-            if authorized:
-                token = make_token( companyKey, agentName, agentID )
-                if token is False:
-                    data["response"] = token
-                else:
-                    # print( token.serialize() )
-                    data["token"] = token.serialize()
-                    data["companyname"] = companyName
 
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            if license != "NULL":
+                if authorized:
+                    token = make_token( companyKey, agentName, agentID )
+            else:
+                if authorized:
+                    token = make_token( companyKey )
+            if token is False:
+                data["response"] = token
+            else:
+                # print( token.serialize() )
+                data["token"] = token.serialize()
+                data["companyname"] = companyName
+
+            self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
                 
         if method == "verify":
             encryptedToken = jsonObject["token"]
@@ -272,7 +277,7 @@ def run(server_class=HTTPServer, handler_class=S, addr="localhost", port=8000):
     print(f"Starting httpd server on {addr}:{port}")
     httpd.serve_forever()
 
-def make_token( companyKey, agentName, agentID ):
+def make_token( companyKey, agentName = None, agentID = None ):
 
     dbConnection = create_connection( 'testDB' )
     with dbConnection:
