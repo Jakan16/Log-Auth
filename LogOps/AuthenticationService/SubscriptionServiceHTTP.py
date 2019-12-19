@@ -264,7 +264,7 @@ class S(BaseHTTPRequestHandler):
                 self.wfile.write(data.encode(encoding='utf_8'))
             
         
-        print(jsonObject) # <-- Print post data
+        # print(jsonObject) # <-- Print post data
         
 
 
@@ -494,7 +494,7 @@ if __name__ == "__main__":
 
     # Server Key insures that malicious actions cannot take place
     SERVERKEY = "V%ojaT0pX}w12db3@*M+_cq}xB8s4+"
-    print(SERVERKEY)
+    # print(SERVERKEY)
     # New Key when the service restarts!
     k = {"k":"kASHDEnWf_SW4SAYsO--hyRXPGgTV06ZE1bZBp4ZSxE","kty":"oct"}
 
