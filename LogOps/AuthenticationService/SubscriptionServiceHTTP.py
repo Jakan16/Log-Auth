@@ -50,6 +50,7 @@ class S(BaseHTTPRequestHandler):
         self._set_headers()
 
     def do_POST(self):
+        self._set_headers()
         # Does not do anything with posted data.
         content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
         post_data = self.rfile.read(content_length).decode('UTF-8') # <--- Gets the data itself
@@ -74,10 +75,9 @@ class S(BaseHTTPRequestHandler):
                 dbConnection.close()
                 data["response"] = succes
                 # print(data)
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
             else:
                 data["response"] = False
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
         
 
         # Checks if a company exists in the database.
@@ -90,10 +90,9 @@ class S(BaseHTTPRequestHandler):
                     succes = check_if_company_exists( dbConnection, companyKey )
                 dbConnection.close()
                 data["response"] = succes
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
             else:
                 data["response"] = False
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
 
         # Fetches all records of companies.
         if method == "getcompanies":
@@ -104,10 +103,9 @@ class S(BaseHTTPRequestHandler):
                     responseList = list_companies( dbConnection )
                 dbConnection.close()
                 data["listofcompanies"] = responseList
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
             else:
                 data["respose"] = False
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
         
 
         # Deletes all traces of a given company, including agents and subscription data. 
@@ -120,10 +118,9 @@ class S(BaseHTTPRequestHandler):
                     succes = delete_company( dbConnection, CompanyPublic )
                 dbConnection.close()
                 data["response"] = succes
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
             else:
                 data["response"] = False
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
 
 
         # Create a new agent in the database.
@@ -131,20 +128,22 @@ class S(BaseHTTPRequestHandler):
             name = jsonObject["name"]
             token = jsonObject["token"]
             claims = verify_token( token )
+            print( claims )
             if claims is False:
                 data["response"] = claims
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
             else:
+                tmp = json.loads( claims )
+                companyPublic = tmp["companypublic"]
                 seq = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
                 licenseKey = "-".join("".join(random.choice(seq) for _ in range(4)) for _ in range(6))
 
                 dbConnection = create_connection( 'testDB' )
                 with dbConnection:
-                    succes = create_new_agent( dbConnection, name, companyKey, licenseKey ) #Query not done
+                    succes = create_new_agent( dbConnection, name, companyPublic, licenseKey ) #Query not done
                 dbConnection.close()
                 data["response"] = succes
 
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
         
         # Fetches all agents of a given company.
         if method == "agentlist":
@@ -152,15 +151,16 @@ class S(BaseHTTPRequestHandler):
             claims = verify_token( token )
             if claims is False:
                 data["response"] = claims
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
             else:
-                companyPublic = claims["companypublic"]
+                tmp = json.loads( claims )
+                companyPublic = tmp["companypublic"]
+                print( companyPublic )
                 dbConnection = create_connection( 'testDB' )
                 with dbConnection:
                     responseList = list_agents( dbConnection, companyPublic )
                 dbConnection.close()
                 data["listofagents"] = responseList
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
 
         # Deletes a specified agent in the database.
         if method == "deleteagent":
@@ -168,17 +168,17 @@ class S(BaseHTTPRequestHandler):
             agentID = jsonObject["agentid"]
             claims = verify_token( token )
             if claims is False:
-                data["response"] = claims
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))  
+                data["response"] = claims 
             else:          
-                companyPublic = claims["companypublic"]
+                tmp = json.loads( claims )
+                companyPublic = tmp["companypublic"]
                 dbConnection = create_connection( 'testDB' )
                 with dbConnection:
                     succes = delete_agent( dbConnection, companyPublic, agentID )
                 dbConnection.close()
                 data["response"] = succes
 
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
 
         # Updates subscription values for a given company.
         if method == "updatesubscription":
@@ -189,7 +189,6 @@ class S(BaseHTTPRequestHandler):
             if claims is False:
                 print( claims )
                 data["response"] = claims
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
             else:
                 tmp = json.loads( claims )
                 companyPublic = tmp["companypublic"]
@@ -199,7 +198,7 @@ class S(BaseHTTPRequestHandler):
                 dbConnection.close()
                 data["response"] = succes
 
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+            self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
         
                 
         # Fetches cpu, ram records for a given company.
@@ -208,7 +207,6 @@ class S(BaseHTTPRequestHandler):
             claims = verify_token( token )
             if claims is False:
                 data["response"] = claims
-                self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
             else:
                 tmp = json.loads( claims )
                 companyPublic = tmp["companypublic"]
@@ -218,33 +216,34 @@ class S(BaseHTTPRequestHandler):
                 dbConnection.close()
                 if cpuAndRamList is False:
                     data["response"] = False
-                    self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
                 else:
                     data["cpu"] = cpuAndRamList[0][0]
                     data["ram"] = cpuAndRamList[0][1]
-                    self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
+                
+            self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
 
         # Checks if the client is authorized, by looking up CompanyKey and LicenseKey in the databas.
         # If authorized, generates a JWT and sends it to client.
         if method == "gettoken":
             companyKey = jsonObject["companykey"]
             license = jsonObject["licensekey"]
-            
             dbConnection = create_connection( 'testDB' )
             with dbConnection:
                 authorized = check_authorization( dbConnection, license, companyKey )
-                agentlist = get_agent_name_and_id( dbConnection, license )
-                if agentlist is False:
-                    agentName = None
-                    agentID = None
-                else:
+                if license != "NULL":
+                    agentlist = get_agent_name_and_id( dbConnection, license )
                     agentName = agentlist[0][0]
                     agentID = agentlist[0][1]
+                companyName = get_company_name( dbConnection, companyKey )
             dbConnection.close()
             if authorized:
                 token = make_token( companyKey, agentName, agentID )
-                print( token.serialize() )
-                data["token"] = token.serialize()
+                if token is False:
+                    data["response"] = token
+                else:
+                    # print( token.serialize() )
+                    data["token"] = token.serialize()
+                    data["companyname"] = companyName
 
                 self.wfile.write(json.dumps(data).encode(encoding='utf_8'))
                 
@@ -261,7 +260,7 @@ class S(BaseHTTPRequestHandler):
             
         
         print(jsonObject) # <-- Print post data
-        self._set_headers()
+        
 
 
 def run(server_class=HTTPServer, handler_class=S, addr="localhost", port=8000):
@@ -273,39 +272,45 @@ def run(server_class=HTTPServer, handler_class=S, addr="localhost", port=8000):
     print(f"Starting httpd server on {addr}:{port}")
     httpd.serve_forever()
 
-def make_token( companyKey, agentName, agentID ):
+def make_token( companyKey, agentName = None, agentID = None ):
 
     dbConnection = create_connection( 'testDB' )
     with dbConnection:
-        companyPublicInList = get_company_public( dbConnection, companyKey )
-        companyPublic = companyPublicInList[0][0]
+        companyPublic = get_company_public( dbConnection, companyKey )
     dbConnection.close()
-
-    tmp = {"agentid": agentID, "agentname": agentName, "companypublic": companyPublic}
-    tmp2 = json.dumps(tmp)
-    token = jwt.JWT( header = {"alg": "HS256"},
-                     claims = tmp2)
-    token.make_signed_token( key )
-    encryptedToken = jwt.JWT( header = {"alg":"A256KW", "enc":"A256CBC-HS512"}, 
-                              claims = token.serialize() )
-    encryptedToken.make_encrypted_token( key )
-    return encryptedToken
+    if companyPublic is False:
+        return False
+    else:
+        tmp = {"agentid": agentID, "agentname": agentName, "companypublic": companyPublic}
+        tmp2 = json.dumps(tmp)
+        token = jwt.JWT( header = {"alg": "HS256"},
+                        claims = tmp2)
+        token.make_signed_token( key )
+        encryptedToken = jwt.JWT( header = {"alg":"A256KW", "enc":"A256CBC-HS512"}, 
+                                claims = token.serialize() )
+        encryptedToken.make_encrypted_token( key )
+        return encryptedToken
 
 
 def verify_token( token ):
     try:
         ET = jwt.JWT( key = key, jwt = token )
         ST = jwt.JWT( key = key, jwt = ET.claims )
-        # print( ST.claims )
+        print( ST.claims )
         return ST.claims
     except:
         return False
 
 
-def check_authorization( connectionToDB, license, key ):
-    query = "SELECT Agents.LicenseKey FROM Companies JOIN Agents ON Companies.ID = Agents.CompanyID  WHERE Agents.LicenseKey = ? OR Companies.CompanyKey = ?"
+def check_authorization( connectionToDB, license, companyKey ):
+    queryWithoutLicense = "SELECT CompanyKey FROM Companies WHERE CompanyKey = ?"
     cursor = connectionToDB.cursor()
-    cursor.execute( query, ( license, key, ) )
+    query = "SELECT Agents.LicenseKey FROM Companies JOIN Agents ON Companies.ID = Agents.CompanyID WHERE Agents.LicenseKey = ? AND Companies.CompanyKey = ?"
+    
+    if license == "NULL":
+        cursor.execute( queryWithoutLicense, ( companyKey, ) )
+    else: 
+        cursor.execute( query, ( license, companyKey, ) )
 
     rows = cursor.fetchall()
     if len(rows) is 0:
@@ -356,11 +361,37 @@ def list_companies( connectionToDB ):
     return listOfRecords
 
 
-def create_new_agent( connectionToDB, name, companyKey, licenseKey ):
-    query = "INSERT INTO Agents VALUES (NULL, (SELECT ID FROM Companies WHERE CompanyKey == ?), ?, ? )"
+def get_company_public( connectionToDB, companyKey ):
+    query = "SELECT CompanyPublic FROM Companies WHERE CompanyKey = ?"
+    cursor = connectionToDB.cursor()
+    cursor.execute( query, ( companyKey, ) )
+
+    record = cursor.fetchone()
+
+    if len( record ) is 0:
+        return False
+    else:
+        return record[0]
+
+
+def get_company_name( connectionToDB, companyKey ):
+    query = "SELECT CompanyName FROM Companies WHERE CompanyKey = ?"
+    cursor = connectionToDB.cursor()
+    cursor.execute( query, ( companyKey, ) )
+
+    record = cursor.fetchone()
+
+    if len( record ) is 0:
+        return False
+    else:
+        return record[0]
+
+
+def create_new_agent( connectionToDB, name, companyPublic, licenseKey ):
+    query = "INSERT INTO Agents VALUES (NULL, (SELECT ID FROM Companies WHERE CompanyPublic == ?), ?, ? )"
     query2 = "SELECT * FROM Agents WHERE Name == ? AND LicenseKey == ?"
     cursor = connectionToDB.cursor()
-    cursor.execute( query, ( companyKey, name, licenseKey, ) )
+    cursor.execute( query, ( companyPublic, name, licenseKey, ) )
     cursor.execute( query2, ( name, licenseKey, ) )
     
     rows = cursor.fetchall()
@@ -369,19 +400,6 @@ def create_new_agent( connectionToDB, name, companyKey, licenseKey ):
         return False
     else:
         return True
-
-
-def get_company_public( connectionToDB, companyKey ):
-    query = "SELECT CompanyPublic FROM Companies WHERE CompanyKey = ?"
-    cursor = connectionToDB.cursor()
-    cursor.execute( query, ( companyKey, ) )
-
-    rows = cursor.fetchall()
-
-    if len(rows) is 0:
-        return False
-    else:
-        return rows
 
 
 def list_agents( connectionToDB, companyPublic ):
@@ -447,6 +465,7 @@ def get_agent_name_and_id( connectionToDB, license ):
     cursor.execute( query, ( license, ) )
 
     rows = cursor.fetchall()
+    print( rows )
     if len(rows) is 0:
         return False
     else:
