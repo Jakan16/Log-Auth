@@ -16,8 +16,8 @@ import jwcrypto
 from jwcrypto import jwt, jwk
 import socket
 import sys
-import sqlite3
-from sqlite3 import Error
+import pymysql
+from pymysql import Error
 import uuid
 import argparse
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -81,7 +81,7 @@ def process_request( method, jsonObject, data ):
             seq = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
             publicKey = "".join(random.choice(seq) for _ in range(16))
 
-            dbConnection = create_connection( 'testDB' )
+            dbConnection = create_connection(  )
             with dbConnection:
                 create_new_company( dbConnection, name, str(companyKey), publicKey )
                 success = check_if_company_exists( dbConnection, str(companyKey) )
@@ -96,7 +96,7 @@ def process_request( method, jsonObject, data ):
         companyKey = jsonObject["companykey"]
         serverKey = jsonObject["serverkey"]
         if serverKey == SERVERKEY:
-            dbConnection = create_connection( 'testDB' )
+            dbConnection = create_connection(  )
             with dbConnection:
                 success = check_if_company_exists( dbConnection, companyKey )
             dbConnection.close()
@@ -108,7 +108,7 @@ def process_request( method, jsonObject, data ):
     if method == "getcompanies":
         serverKey = jsonObject["serverkey"]
         if serverKey == SERVERKEY:
-            dbConnection = create_connection( 'testDB' )
+            dbConnection = create_connection(  )
             with dbConnection:
                 responseList = list_companies( dbConnection )
             dbConnection.close()
@@ -122,7 +122,7 @@ def process_request( method, jsonObject, data ):
         CompanyPublic = jsonObject["companypublic"]
         serverKey = jsonObject["serverkey"]
         if serverKey == SERVERKEY:
-            dbConnection = create_connection( 'testDB' )
+            dbConnection = create_connection(  )
             with dbConnection:
                 success = delete_company( dbConnection, CompanyPublic )
             dbConnection.close()
@@ -144,7 +144,7 @@ def process_request( method, jsonObject, data ):
             seq = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
             licenseKey = "-".join("".join(random.choice(seq) for _ in range(4)) for _ in range(6))
 
-            dbConnection = create_connection( 'testDB' )
+            dbConnection = create_connection(  )
             with dbConnection:
                 success = create_new_agent( dbConnection, name, companyPublic, licenseKey ) #Query not done
             dbConnection.close()
@@ -160,7 +160,7 @@ def process_request( method, jsonObject, data ):
         else:
             tmp = json.loads( claims )
             companyPublic = tmp["companypublic"]
-            dbConnection = create_connection( 'testDB' )
+            dbConnection = create_connection(  )
             with dbConnection:
                 responseList = list_agents( dbConnection, companyPublic )
             dbConnection.close()
@@ -177,7 +177,7 @@ def process_request( method, jsonObject, data ):
         else:          
             tmp = json.loads( claims )
             companyPublic = tmp["companypublic"]
-            dbConnection = create_connection( 'testDB' )
+            dbConnection = create_connection(  )
             with dbConnection:
                 success = delete_agent( dbConnection, companyPublic, agentID )
             dbConnection.close()
@@ -195,7 +195,7 @@ def process_request( method, jsonObject, data ):
         else:
             tmp = json.loads( claims )
             companyPublic = tmp["companypublic"]
-            dbConnection = create_connection( 'testDB' )
+            dbConnection = create_connection(  )
             with dbConnection:
                 success = update_subscription( dbConnection, cpu, ram, companyPublic )
             dbConnection.close()
@@ -212,7 +212,7 @@ def process_request( method, jsonObject, data ):
         else:
             tmp = json.loads( claims )
             companyPublic = tmp["companypublic"]
-            dbConnection = create_connection( 'testDB' )
+            dbConnection = create_connection(  )
             with dbConnection:
                 cpuAndRamList = get_subscription( dbConnection, companyPublic )
             dbConnection.close()
@@ -228,7 +228,7 @@ def process_request( method, jsonObject, data ):
     if method == "gettoken":
         companyKey = jsonObject["companykey"]
         license = jsonObject["licensekey"]
-        dbConnection = create_connection( 'testDB' )
+        dbConnection = create_connection(  )
         with dbConnection:
             authorized = check_authorization( dbConnection, license, companyKey )
             if license != "NULL":
@@ -262,7 +262,7 @@ def process_request( method, jsonObject, data ):
 
 def make_token( companyKey, agentName = None, agentID = None ):
 
-    dbConnection = create_connection( 'testDB' )
+    dbConnection = create_connection(  )
     with dbConnection:
         companyPublic = get_company_public( dbConnection, companyKey )
     dbConnection.close()
@@ -290,12 +290,12 @@ def verify_token( token ):
 
 
 def check_authorization( connectionToDB, license, companyKey ):
-    queryWithoutLicense = "SELECT CompanyKey FROM Companies WHERE CompanyKey = ?"
+    queryWithoutLicense = "SELECT CompanyKey FROM SubscriptionDB.Companies WHERE CompanyKey = %s"
     cursor = connectionToDB.cursor()
-    query = "SELECT Agents.LicenseKey FROM Companies JOIN Agents ON Companies.ID = Agents.CompanyID WHERE Agents.LicenseKey = ? AND Companies.CompanyKey = ?"
+    query = "SELECT Agents.LicenseKey FROM Companies JOIN Agents ON Companies.ID = Agents.CompanyID WHERE Agents.LicenseKey = %s AND Companies.CompanyKey = %s"
     
     if license == "NULL":
-        cursor.execute( queryWithoutLicense, ( companyKey, ) )
+        cursor.execute( queryWithoutLicense, ( companyKey, ) ) 
     else: 
         cursor.execute( query, ( license, companyKey, ) )
 
@@ -306,18 +306,18 @@ def check_authorization( connectionToDB, license, companyKey ):
         return True
 
 
-def create_connection( db ):
+def create_connection():
     connection = None
     try:
-        connection = sqlite3.connect( db )
+        connection = pymysql.connect( host = HOST, user = USERNAME, passwd = PASSWORD, db = DATABASE )
     except Error as exception:
         print( exception )
     return connection
 
 
 def create_new_company( connectionToDB, name, companyKey, publicKey ):
-    queryCreateCompany = "INSERT INTO Companies VALUES (NULL, ?, ?, ?)"
-    queryCreateBlankSubscription = "INSERT INTO Subscriptions SELECT NULL, Companies.ID, 0, 0 FROM Companies WHERE Companies.CompanyKey = ?"
+    queryCreateCompany = "INSERT INTO Companies VALUES (NULL, %s, %s, %s)"
+    queryCreateBlankSubscription = "INSERT INTO Subscriptions SELECT NULL, Companies.ID, 0, 0 FROM Companies WHERE Companies.CompanyKey = %s"
     cursor = connectionToDB.cursor()
     cursor.execute( queryCreateCompany, ( name, companyKey, publicKey, ) )
     cursor.execute( queryCreateBlankSubscription, ( companyKey, ) )
@@ -325,7 +325,7 @@ def create_new_company( connectionToDB, name, companyKey, publicKey ):
 
 
 def check_if_company_exists( connectionToDB, companyKey ):
-    queryCheckCreation = "SELECT * FROM Companies JOIN Subscriptions ON Companies.ID = Subscriptions.CompanyID WHERE Companies.CompanyKey = ?"
+    queryCheckCreation = "SELECT * FROM Companies JOIN Subscriptions ON Companies.ID = Subscriptions.CompanyID WHERE Companies.CompanyKey = %s"
     cursor = connectionToDB.cursor()
     cursor.execute( queryCheckCreation, ( companyKey, ) )
 
@@ -337,19 +337,19 @@ def check_if_company_exists( connectionToDB, companyKey ):
         return True
 
 
-def list_companies( connectionToDB ):
-    connectionToDB.row_factory = sqlite3.Row
+def list_companies( connectionToDB ): 
     query = "SELECT CompanyName, CompanyKey, CompanyPublic FROM Companies"
-    cursor = connectionToDB.cursor()
+    cursor = connectionToDB.cursor( pymysql.cursors.DictCursor )
     cursor.execute( query )
 
     rows = cursor.fetchall()
+    print(rows)
     listOfRecords = [dict(ix) for ix in rows]
     return listOfRecords
 
 
 def get_company_public( connectionToDB, companyKey ):
-    query = "SELECT CompanyPublic FROM Companies WHERE CompanyKey = ?"
+    query = "SELECT CompanyPublic FROM Companies WHERE CompanyKey = %s"
     cursor = connectionToDB.cursor()
     cursor.execute( query, ( companyKey, ) )
 
@@ -362,7 +362,7 @@ def get_company_public( connectionToDB, companyKey ):
 
 
 def get_company_name( connectionToDB, companyKey ):
-    query = "SELECT CompanyName FROM Companies WHERE CompanyKey = ?"
+    query = "SELECT CompanyName FROM Companies WHERE CompanyKey = %s"
     cursor = connectionToDB.cursor()
     cursor.execute( query, ( companyKey, ) )
 
@@ -375,10 +375,10 @@ def get_company_name( connectionToDB, companyKey ):
 
 
 def delete_company( connectionToDB, companyPublic ):
-    queryDeleteCompany = "DELETE FROM Companies WHERE CompanyPublic = ?"
-    queryDeleteAllAgents = "DELETE FROM Agents WHERE CompanyID = (SELECT ID FROM Companies WHERE CompanyPublic = ?)"
-    queryDeleteSubscription = "DELETE FROM Subscriptions WHERE CompanyID = (SELECT ID FROM Companies WHERE CompanyPublic = ?)"
-    queryCheckIfDeleted = "SELECT * FROM Companies JOIN Agents ON Companies.ID = Agents.CompanyID JOIN Subscriptions ON Companies.ID = Subscriptions.CompanyID WHERE Companies.CompanyPublic = ?"
+    queryDeleteCompany = "DELETE FROM Companies WHERE CompanyPublic = %s"
+    queryDeleteAllAgents = "DELETE FROM Agents WHERE CompanyID = (SELECT ID FROM Companies WHERE CompanyPublic = %s)"
+    queryDeleteSubscription = "DELETE FROM Subscriptions WHERE CompanyID = (SELECT ID FROM Companies WHERE CompanyPublic = %s)"
+    queryCheckIfDeleted = "SELECT * FROM Companies JOIN Agents ON Companies.ID = Agents.CompanyID JOIN Subscriptions ON Companies.ID = Subscriptions.CompanyID WHERE Companies.CompanyPublic = %s"
     cursor = connectionToDB.cursor()
     cursor.execute( queryDeleteSubscription, ( companyPublic, ) )
     cursor.execute( queryDeleteAllAgents, ( companyPublic, ) )
@@ -394,7 +394,7 @@ def delete_company( connectionToDB, companyPublic ):
 
 
 def create_new_agent( connectionToDB, name, companyPublic, licenseKey ):
-    query = "INSERT INTO Agents VALUES (NULL, (SELECT ID FROM Companies WHERE CompanyPublic == ?), ?, ? )"
+    query = "INSERT INTO Agents VALUES (NULL, (SELECT ID FROM Companies WHERE CompanyPublic == %s), %s, %s )"
     query2 = "SELECT * FROM Agents WHERE Name == ? AND LicenseKey == ?"
     cursor = connectionToDB.cursor()
     cursor.execute( query, ( companyPublic, name, licenseKey, ) )
@@ -409,9 +409,8 @@ def create_new_agent( connectionToDB, name, companyPublic, licenseKey ):
 
 
 def list_agents( connectionToDB, companyPublic ):
-    connectionToDB.row_factory = sqlite3.Row
-    query = "SELECT Agents.name, Agents.LicenseKey, Agents.ID FROM Agents JOIN Companies ON Companies.ID = Agents.CompanyID WHERE Companies.CompanyPublic = ?"
-    cursor = connectionToDB.cursor()
+    query = "SELECT Agents.name, Agents.LicenseKey, Agents.ID FROM Agents JOIN Companies ON Companies.ID = Agents.CompanyID WHERE Companies.CompanyPublic = %s"
+    cursor = connectionToDB.cursor( pymysql.cursors.DictCursor )
     cursor.execute( query, ( companyPublic, ) )
 
     rows = cursor.fetchall()
@@ -419,7 +418,7 @@ def list_agents( connectionToDB, companyPublic ):
     return listOfRecords
 
 def delete_agent( connectionToDB, companyPublic, agentID ):
-    query = "DELETE FROM Agents WHERE ID = ? AND companyID IN (SELECT Companies.ID FROM Companies WHERE Companies.CompanyPublic = ?)"
+    query = "DELETE FROM Agents WHERE ID = ? AND companyID IN (SELECT Companies.ID FROM Companies WHERE Companies.CompanyPublic = %s)"
     query2 = "SELECT * FROM Agents WHERE ID = ?"
     cursor = connectionToDB.cursor()
     cursor.execute( query, ( agentID, companyPublic, ) )
@@ -434,8 +433,8 @@ def delete_agent( connectionToDB, companyPublic, agentID ):
 
 
 def update_subscription( connectionToDB, cpu, ram, companyPublic ):
-    query = "UPDATE Subscriptions SET CPU_USE = ?, RAM_USE = ? WHERE CompanyID = ( SELECT ID FROM Companies WHERE CompanyPublic = ?)"
-    query2 = "SELECT CPU_USE, RAM_USE FROM Subscriptions WHERE CPU_USE = ? AND RAM_USE = ? AND CompanyID = (SELECT ID FROM Companies WHERE CompanyPublic = ?)"
+    query = "UPDATE Subscriptions SET CPU_USE = ?, RAM_USE = ? WHERE CompanyID = ( SELECT ID FROM Companies WHERE CompanyPublic = %s)"
+    query2 = "SELECT CPU_USE, RAM_USE FROM Subscriptions WHERE CPU_USE = ? AND RAM_USE = ? AND CompanyID = (SELECT ID FROM Companies WHERE CompanyPublic = %s)"
     cursor = connectionToDB.cursor()
     cursor.execute( query, ( cpu, ram, companyPublic, ) )
     cursor.execute( query2, ( cpu, ram, companyPublic ) )
@@ -449,7 +448,7 @@ def update_subscription( connectionToDB, cpu, ram, companyPublic ):
 
 
 def get_subscription( connectionToDB, companyPublic ):
-    query = "SELECT Subscriptions.CPU_USE, Subscriptions.RAM_USE FROM Subscriptions JOIN Companies ON Subscriptions.CompanyID = Companies.ID WHERE Companies.CompanyPublic = ?"
+    query = "SELECT Subscriptions.CPU_USE, Subscriptions.RAM_USE FROM Subscriptions JOIN Companies ON Subscriptions.CompanyID = Companies.ID WHERE Companies.CompanyPublic = %s"
     cursor = connectionToDB.cursor()
     cursor.execute( query, ( companyPublic, ) )
 
@@ -461,7 +460,7 @@ def get_subscription( connectionToDB, companyPublic ):
 
 
 def get_agent_name_and_id( connectionToDB, license ):
-    query = "SELECT Name, ID FROM Agents WHERE LicenseKey = ?"
+    query = "SELECT Name, ID FROM Agents WHERE LicenseKey = %s"
     cursor = connectionToDB.cursor()
     cursor.execute( query, ( license, ) )
 
@@ -481,6 +480,11 @@ if __name__ == "__main__":
 
     key = jwk.JWK(**k)
     
+    HOST = "localhost"
+    USERNAME = "root"
+    PASSWORD = "123456"
+    DATABASE = "SubscriptionDB"
+
     parser = argparse.ArgumentParser(description="Run a simple HTTP server")
     parser.add_argument(
         "-l",
