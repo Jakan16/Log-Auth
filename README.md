@@ -1,2 +1,2 @@
 # Log-Auth
-An authentication service, used to verify logs comes from legitimate senders
+An authorization service, used to verify incoming logs from legitimate senders.
