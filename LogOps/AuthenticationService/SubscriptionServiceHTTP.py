@@ -24,6 +24,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 import random
 import sys
+import os
 
 
 
@@ -480,7 +481,8 @@ if __name__ == "__main__":
 
     key = jwk.JWK(**k)
     
-    HOST = "localhost"
+    HOST = os.environ['MYSQL_HOST']
+    print( HOST )
     USERNAME = "root"
     PASSWORD = "123456"
     DATABASE = "SubscriptionDB"

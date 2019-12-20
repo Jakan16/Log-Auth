@@ -1,0 +1,26 @@
+version: '3.3'
+services: 
+    subscription:
+        image: docker.io/logops/subscription:1.0.2
+        container_name: subscription
+        environment: 
+            MYSQL_HOST: subscriptionDB
+        ports: 
+            - "7900:8000"
+        depends_on: 
+            - subscriptionDB
+        networks: 
+            - subscriptionNet
+
+    subscriptionDB:
+        image: docker.io/logops/subscriptiondb:1.0.1
+        container_name: subscriptionDB
+        ports:
+            - "3306:3306"
+        networks: 
+            - subscriptionNet
+        volumes: 
+            - ./database:/var/lib/mysql
+        
+networks: 
+    subscriptionNet:
