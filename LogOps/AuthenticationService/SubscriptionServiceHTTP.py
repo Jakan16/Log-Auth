@@ -14,7 +14,6 @@ Send a POST request:
 
 import jwcrypto
 from jwcrypto import jwt, jwk
-import json
 import socket
 import sys
 import sqlite3
@@ -68,7 +67,7 @@ def run(server_class=HTTPServer, handler_class=S, addr="localhost", port=8000):
     server_address = (addr, port)
     httpd = server_class(server_address, handler_class)
 
-    print(f"Starting httpd server on {addr}:{port}")
+    print(f"Starting Subscription Service on {addr}:{port}")
     httpd.serve_forever()
 
 
