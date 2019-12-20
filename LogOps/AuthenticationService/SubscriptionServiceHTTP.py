@@ -55,12 +55,11 @@ class S(BaseHTTPRequestHandler):
         post_data = self.rfile.read(content_length).decode('UTF-8') # <--- Gets the data itself
         jsonObject = json.loads( post_data )
         method = jsonObject["method"]
-        data = {}       
+        data = {}      
 
         # Handles the differents types of the methods requests. 
         process_request( method, jsonObject, data )
-        self.wfile.write(json.dumps(data).encode(encoding='utf_8'))   
-
+        self.wfile.write(json.dumps(data).encode(encoding='utf_8')) 
 
 def run(server_class=HTTPServer, handler_class=S, addr="0.0.0.0.", port=8000):    #localhost replaced with 0.0.0.0
 
@@ -255,10 +254,18 @@ def process_request( method, jsonObject, data ):
     if method == "verify":
         encryptedToken = jsonObject["token"]
         claims = verify_token( encryptedToken )
+        print( str(claims) + " hello here")
         if claims is False:
             data["response"] = claims
         else:
-            data = claims
+            tmp = json.loads(claims)
+            agentID = tmp["agentid"]
+            agentName = tmp["agentname"]
+            companyPublic = tmp["companypublic"]
+            
+            data["agentid"] = agentID
+            data["agentname"] = agentName
+            data["companypublic"] = companyPublic
 
 
 def make_token( companyKey, agentName = None, agentID = None ):
@@ -285,6 +292,7 @@ def verify_token( token ):
     try:
         ET = jwt.JWT( key = key, jwt = token )
         ST = jwt.JWT( key = key, jwt = ET.claims )
+
         return ST.claims
     except:
         return False
