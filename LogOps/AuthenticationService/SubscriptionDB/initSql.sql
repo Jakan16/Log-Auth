@@ -53,7 +53,7 @@ CREATE TABLE `Companies` (
   `CompanyKey` varchar(64) NOT NULL,
   `CompanyPublic` varchar(45) NOT NULL,
   PRIMARY KEY (`ID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -62,6 +62,7 @@ CREATE TABLE `Companies` (
 
 LOCK TABLES `Companies` WRITE;
 /*!40000 ALTER TABLE `Companies` DISABLE KEYS */;
+INSERT INTO `Companies` VALUES (1,'test2','642880d7-ecab-446a-99ec-39e42375afb5','8U6VDMFK6LC9XLK8'),(2,'test1','fc0b24e3-ca03-4d06-88ca-43454942b988','6S5T7MN1TLV0U7IM');
 /*!40000 ALTER TABLE `Companies` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -75,10 +76,10 @@ DROP TABLE IF EXISTS `Subscriptions`;
 CREATE TABLE `Subscriptions` (
   `ID` int(11) NOT NULL AUTO_INCREMENT,
   `CompanyID` int(11) NOT NULL,
-  `CPU_USE` decimal(64,0) DEFAULT NULL,
+  `CPU_USE` int(11) DEFAULT NULL,
   `RAM_USE` decimal(64,0) DEFAULT NULL,
   PRIMARY KEY (`ID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -87,6 +88,7 @@ CREATE TABLE `Subscriptions` (
 
 LOCK TABLES `Subscriptions` WRITE;
 /*!40000 ALTER TABLE `Subscriptions` DISABLE KEYS */;
+INSERT INTO `Subscriptions` VALUES (1,1,0,0),(2,2,0,0);
 /*!40000 ALTER TABLE `Subscriptions` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -99,4 +101,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2019-12-20 12:52:28
+-- Dump completed on 2019-12-20 15:54:07
