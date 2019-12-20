@@ -50,7 +50,6 @@ class S(BaseHTTPRequestHandler):
 
     def do_POST(self):
         self._set_headers()
-        # Does not do anything with posted data.
         content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
         post_data = self.rfile.read(content_length).decode('UTF-8') # <--- Gets the data itself
         jsonObject = json.loads( post_data )
@@ -62,7 +61,7 @@ class S(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(data).encode(encoding='utf_8'))   
 
 
-def run(server_class=HTTPServer, handler_class=S, addr="localhost", port=8000):    
+def run(server_class=HTTPServer, handler_class=S, addr="0.0.0.0.", port=8000):    #localhost replaced with 0.0.0.0
 
     server_address = (addr, port)
     httpd = server_class(server_address, handler_class)
@@ -486,7 +485,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-l",
         "--listen",
-        default="localhost",
+        default="0.0.0.0", #localhost changed to 0.0.0.0
         help="Specify the IP address on which the server listens",
     )
     parser.add_argument(
