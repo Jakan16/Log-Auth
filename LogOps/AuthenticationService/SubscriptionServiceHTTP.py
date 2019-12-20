@@ -254,7 +254,6 @@ def process_request( method, jsonObject, data ):
     if method == "verify":
         encryptedToken = jsonObject["token"]
         claims = verify_token( encryptedToken )
-        print( str(claims) + " hello here")
         if claims is False:
             data["response"] = claims
         else:
