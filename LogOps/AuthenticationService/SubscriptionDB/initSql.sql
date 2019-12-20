@@ -23,7 +23,7 @@ DROP TABLE IF EXISTS `Agents`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `Agents` (
-  `ID` int(11) NOT NULL,
+  `ID` int(11) NOT NULL AUTO_INCREMENT,
   `CompanyID` int(11) NOT NULL,
   `Name` varchar(45) NOT NULL,
   `LicenseKey` varchar(45) NOT NULL,
@@ -53,7 +53,7 @@ CREATE TABLE `Companies` (
   `CompanyKey` varchar(64) NOT NULL,
   `CompanyPublic` varchar(45) NOT NULL,
   PRIMARY KEY (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -62,7 +62,7 @@ CREATE TABLE `Companies` (
 
 LOCK TABLES `Companies` WRITE;
 /*!40000 ALTER TABLE `Companies` DISABLE KEYS */;
-INSERT INTO `Companies` VALUES (1,'test2','642880d7-ecab-446a-99ec-39e42375afb5','8U6VDMFK6LC9XLK8'),(2,'test1','fc0b24e3-ca03-4d06-88ca-43454942b988','6S5T7MN1TLV0U7IM');
+INSERT INTO `Companies` VALUES (1,'test2','642880d7-ecab-446a-99ec-39e42375afb5','8U6VDMFK6LC9XLK8'),(2,'test1','fc0b24e3-ca03-4d06-88ca-43454942b988','6S5T7MN1TLV0U7IM'),(3,'test2','c9867cf3-fdc7-4993-9f32-8dac1cae475a','0M6HJSFDM3A5KW0C'),(4,'test2','3f6fefcd-3775-4462-8ccd-36e7ecd32555','5KFWL75FMS79Q5FX'),(5,'test2','43127bd3-6beb-4d1e-bbce-4d4ba8dd5b3a','IV4BIRC97A7SWDIU');
 /*!40000 ALTER TABLE `Companies` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -79,7 +79,7 @@ CREATE TABLE `Subscriptions` (
   `CPU_USE` int(11) DEFAULT NULL,
   `RAM_USE` decimal(64,0) DEFAULT NULL,
   PRIMARY KEY (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -88,7 +88,7 @@ CREATE TABLE `Subscriptions` (
 
 LOCK TABLES `Subscriptions` WRITE;
 /*!40000 ALTER TABLE `Subscriptions` DISABLE KEYS */;
-INSERT INTO `Subscriptions` VALUES (1,1,0,0),(2,2,0,0);
+INSERT INTO `Subscriptions` VALUES (1,1,0,0),(2,2,0,0),(3,3,0,0),(4,4,0,0),(5,5,0,0);
 /*!40000 ALTER TABLE `Subscriptions` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -101,4 +101,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2019-12-20 15:54:07
+-- Dump completed on 2019-12-20 16:41:43

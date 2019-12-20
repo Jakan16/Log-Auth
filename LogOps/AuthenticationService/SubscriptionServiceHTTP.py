@@ -220,8 +220,8 @@ def process_request( method, jsonObject, data ):
             if cpuAndRamList is False:
                 data["response"] = False
             else:
-                data["cpu"] = cpuAndRamList[0][0]
-                data["ram"] = cpuAndRamList[0][1]
+                data["cpu"] = str(cpuAndRamList[0][0])
+                data["ram"] = str(cpuAndRamList[0][1])
             
 
     # Checks if the client is authorized, by looking up CompanyKey and LicenseKey in the databas.
@@ -395,8 +395,8 @@ def delete_company( connectionToDB, companyPublic ):
 
 
 def create_new_agent( connectionToDB, name, companyPublic, licenseKey ):
-    query = "INSERT INTO Agents VALUES (NULL, (SELECT ID FROM Companies WHERE CompanyPublic == %s), %s, %s )"
-    query2 = "SELECT * FROM Agents WHERE Name == ? AND LicenseKey == ?"
+    query = "INSERT INTO Agents VALUES (NULL, (SELECT ID FROM Companies WHERE CompanyPublic = %s), %s, %s )"
+    query2 = "SELECT * FROM Agents WHERE Name = %s AND LicenseKey = %s"
     cursor = connectionToDB.cursor()
     cursor.execute( query, ( companyPublic, name, licenseKey, ) )
     cursor.execute( query2, ( name, licenseKey, ) )
@@ -419,8 +419,8 @@ def list_agents( connectionToDB, companyPublic ):
     return listOfRecords
 
 def delete_agent( connectionToDB, companyPublic, agentID ):
-    query = "DELETE FROM Agents WHERE ID = ? AND companyID IN (SELECT Companies.ID FROM Companies WHERE Companies.CompanyPublic = %s)"
-    query2 = "SELECT * FROM Agents WHERE ID = ?"
+    query = "DELETE FROM Agents WHERE ID = %s AND companyID IN (SELECT Companies.ID FROM Companies WHERE Companies.CompanyPublic = %s)"
+    query2 = "SELECT * FROM Agents WHERE ID = %s"
     cursor = connectionToDB.cursor()
     cursor.execute( query, ( agentID, companyPublic, ) )
     cursor.execute( query2, ( agentID, ) )
@@ -434,8 +434,8 @@ def delete_agent( connectionToDB, companyPublic, agentID ):
 
 
 def update_subscription( connectionToDB, cpu, ram, companyPublic ):
-    query = "UPDATE Subscriptions SET CPU_USE = ?, RAM_USE = ? WHERE CompanyID = ( SELECT ID FROM Companies WHERE CompanyPublic = %s)"
-    query2 = "SELECT CPU_USE, RAM_USE FROM Subscriptions WHERE CPU_USE = ? AND RAM_USE = ? AND CompanyID = (SELECT ID FROM Companies WHERE CompanyPublic = %s)"
+    query = "UPDATE Subscriptions SET CPU_USE = %s, RAM_USE = %s WHERE CompanyID = ( SELECT ID FROM Companies WHERE CompanyPublic = %s)"
+    query2 = "SELECT CPU_USE, RAM_USE FROM Subscriptions WHERE CPU_USE = %s AND RAM_USE = %s AND CompanyID = (SELECT ID FROM Companies WHERE CompanyPublic = %s)"
     cursor = connectionToDB.cursor()
     cursor.execute( query, ( cpu, ram, companyPublic, ) )
     cursor.execute( query2, ( cpu, ram, companyPublic ) )
