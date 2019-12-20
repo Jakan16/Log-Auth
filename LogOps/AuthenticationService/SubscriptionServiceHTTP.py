@@ -104,6 +104,7 @@ def process_request( method, jsonObject, data ):
         else:
             data["response"] = False
 
+
     # Fetches all records of companies.
     if method == "getcompanies":
         serverKey = jsonObject["serverkey"]
@@ -200,7 +201,6 @@ def process_request( method, jsonObject, data ):
                 success = update_subscription( dbConnection, cpu, ram, companyPublic )
             dbConnection.close()
             data["response"] = success
-
     
             
     # Fetches cpu, ram records for a given company.
@@ -250,7 +250,8 @@ def process_request( method, jsonObject, data ):
             data["token"] = token.serialize()
             data["companyname"] = companyName
 
-            
+
+    # Verifies a given token, if verifiable, else token is invalid.
     if method == "verify":
         encryptedToken = jsonObject["token"]
         claims = verify_token( encryptedToken )
@@ -445,7 +446,7 @@ def update_subscription( connectionToDB, cpu, ram, companyPublic ):
     query2 = "SELECT CPU_USE, RAM_USE FROM Subscriptions WHERE CPU_USE = %s AND RAM_USE = %s AND CompanyID = (SELECT ID FROM Companies WHERE CompanyPublic = %s)"
     cursor = connectionToDB.cursor()
     cursor.execute( query, ( cpu, ram, companyPublic, ) )
-    cursor.execute( query2, ( cpu, ram, companyPublic ) )
+    cursor.execute( query2, ( cpu, ram, companyPublic, ) )
     
     rows = cursor.fetchall()
 
